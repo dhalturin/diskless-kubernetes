@@ -1,0 +1,13 @@
+ui menu.c32
+timeout 30
+font UniCyr_8x16.psf
+menu title pxe boot
+menu color tabmsg 37;40
+menu color hotsel 30;47
+menu color sel 30;47
+menu color scrollbar 30;47
+
+label {{ kernel_version }}
+menu label ubuntu {{ kernel_version }}
+  kernel vmlinuz-{{ kernel_version }}
+  append initrd=initrd.img-{{ kernel_version }} rooturl=http://{{ ip }}/images/{{ image }} boot=pxe initramfs.runsize=150M disk=60

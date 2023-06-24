@@ -1,0 +1,131 @@
+#!/bin/bash
+
+kvp_try_daemon() {
+    chroot ${overlayfsDir} /usr/sbin/hv_kvp_daemon
+}
+
+kvp_read() {
+    fname=${overlayfsDir}/var/lib/hyperv/.kvp_pool_3
+    tryCount="1"
+    tryCountMax="10"
+
+    log_begin_msg "Waiting kvp files"
+    while [ ! -f ${fname} ] && [ ${tryCount} -le ${tryCountMax} ]; do
+        tryCount=$(( ${tryCount} + 1 ))
+        sleep 2
+    done
+
+    if [ ! -f ${fname} ]; then
+        log_warning_msg "Close function, kvp files not found"
+        return 0
+    fi
+
+    log_begin_msg "Reading ${fname}"
+    nb=$(wc -c < ${fname})
+    nkv=$(( nb / (512+2048) ))
+
+    for n in $(seq 0 $(( ${nkv} - 1 )) ); do
+        offset=$(( $n * (512 + 2048) ))
+        k=$(dd if=${fname} count=512 bs=1 skip=${offset} 2>/dev/null | sed 's/\x0.*//g')
+        v=$(dd if=${fname} count=2048 bs=1 skip=$(( ${offset} + 512 )) 2>/dev/null | sed 's/\x0.*//g')
+        echo "$k=$v" >> kvp
+    done
+}
+
+mountroot() {
+    maxTryCount=5
+    squashfsFile="/tmp/rootfs.squashfs"
+    squashfsMountPoint="/mnt/ro"
+    tmpfsMountPoint="/mnt/rw"
+    overlayfsUppderDir="$tmpfsMountPoint/upper"
+    overlayfsWorkDir="$tmpfsMountPoint/work"
+    overlayfsDir="/mnt/overlayfs"
+    tryCount="1"
+    diskSizeAsPercentageOfMemory="30"
+    hostname=""
+
+    # run udevadm
+    wait_for_udev 10
+
+    for x in $(cat /proc/cmdline); do
+        case $x in
+            rooturl=*)
+            export rooturl=${x#rooturl=}
+        ;;
+            maxTryCount=*)
+            export maxTryCount=${x#maxTryCount=}
+        ;;
+            disk=*)
+            export diskSizeAsPercentageOfMemory=${x#disk=}
+        ;;
+            hostname=*)
+            export hostname=${x#hostname=}
+        ;;
+        esac
+    done
+
+    log_begin_msg "Loading modules" 
+    modprobe squashfs || panic "can't modprobe squashfs"
+    modprobe af_packet || panic "can't modprobe af_packet"
+    modprobe overlay || panic "can't modprobe overlayfs"
+    modprobe br_netfilter || panic "can't modprobe br_netfilter"
+    log_success_msg "modules loaded"
+
+    log_begin_msg "Configure network"
+    configure_networking || panic "Can't configure network"
+    log_success_msg "Network configured"
+
+    log_begin_msg "Download rootfs"
+    while [ ! -f ${squashfsFile} ] && [ ${tryCount} -le ${maxTryCount} ]; do
+        wget ${rooturl} -O ${squashfsFile} || log_failure_msg "Can't download rootfs, count ${tryCount}"
+        tryCount=$(( ${tryCount} + 1 ))
+        sleep 0.5
+    done
+
+    if [ -f ${squashfsFile} ]; then
+        log_success_msg "Rootfs downloaded"
+    else
+        panic "Can't download rootfs"
+    fi
+
+    log_begin_msg "Mount rootfs"
+    mkdir -p $squashfsMountPoint
+    mount -t squashfs -o loop $squashfsFile $squashfsMountPoint || panic "Can't mount rootfs"
+    log_success_msg "Rootfs mounted"
+
+    log_begin_msg "Mount tmpfs"
+    mkdir -p $tmpfsMountPoint
+    mount -t tmpfs -o "size=${diskSizeAsPercentageOfMemory}%" tmpfs $tmpfsMountPoint || panic "Tmpfs mount failed "
+    log_success_msg "Tmpfs mounted"
+
+    log_begin_msg "Mount overlayfs"
+    mkdir -p $overlayfsUppderDir $overlayfsWorkDir $overlayfsDir
+    mount -t overlay overlay -o lowerdir=$squashfsMountPoint,upperdir=$overlayfsUppderDir,workdir=$overlayfsWorkDir $overlayfsDir || panic "Overlayfs mount failed"
+    log_success_msg "Overlayfs mounted"
+
+    mount --move /proc ${overlayfsDir}/proc
+    mount --move /sys ${overlayfsDir}/sys
+    mount --move /dev ${overlayfsDir}/dev
+    mount --move /run ${overlayfsDir}/run
+
+    echo 127.0.0.1 localhost > ${overlayfsDir}/etc/hosts
+
+    if [ -z "${hostname}" ]; then
+        case $(chroot ${overlayfsDir} /usr/bin/systemd-detect-virt) in
+            microsoft)
+            kvp_try_daemon
+            kvp_read
+            hostname=$(awk -F '=' '/VirtualMachineName/{ print $2 }' kvp)
+        ;;
+        esac
+    fi
+
+    if [ ! -z "${hostname}" ]; then
+        sed -i "s|_hostname_|${hostname}|g" ${overlayfsDir}/opt/meta-data
+        echo 127.0.0.1 ${hostname} >> ${overlayfsDir}/etc/hosts
+        /bin/hostname ${hostname}
+    fi
+
+    log_begin_msg "Move overlayfs to new root"
+    exec switch_root ${overlayfsDir} ${init}
+}

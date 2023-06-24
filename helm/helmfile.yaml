@@ -1,0 +1,86 @@
+---
+helmDefaults:
+  createNamespace: true
+  timeout: 600
+---
+repositories:
+  - name: flannel
+    url: https://flannel-io.github.io/flannel
+
+  - name: cert-manager
+    url: https://charts.jetstack.io
+
+  - name: ingress-nginx
+    url: https://kubernetes.github.io/ingress-nginx
+
+  - name: metallb
+    url: https://metallb.github.io/metallb
+
+  - name: actions-runner-controller
+    url: https://actions-runner-controller.github.io/actions-runner-controller
+---
+releases:
+  - name: flannel
+    namespace: kube-flannel
+    chart: flannel/flannel
+
+  - name: cert-manager
+    namespace: cert-manager
+    chart: cert-manager/cert-manager
+    values:
+      - installCRDs: true
+    wait: true
+
+  - name: cert-manager-addon
+    namespace: cert-manager
+    chart: charts/cert-manager-addon
+    values:
+      - cloudflare:
+          email: ref+sops://secrets.yaml#/cloudflare_email
+          token: ref+sops://secrets.yaml#/cloudflare_token
+    needs:
+      - cert-manager/cert-manager
+    disableValidationOnInstall: true
+
+  - name: ingress
+    namespace: kube-ingress
+    chart: ingress-nginx/ingress-nginx
+
+  - name: metallb
+    namespace: kube-metallb
+    chart: metallb/metallb
+    needs:
+      - kube-flannel/flannel
+    wait: true
+
+  - name: metallb-addon
+    namespace: kube-metallb
+    chart: charts/metallb-addon
+    values:
+      - addresses:
+          - 192.168.10.10-192.168.10.20
+    needs:
+      - metallb
+    disableValidationOnInstall: true
+
+  - name: github-runner
+    namespace: github-runner
+    chart: actions-runner-controller/actions-runner-controller
+    values:
+      - authSecret:
+          create: true
+          github_token: ref+sops://secrets.yaml#/github_token
+    needs:
+      - cert-manager/cert-manager
+    disableValidationOnInstall: true
+    wait: true
+
+  - name: github-runner-addon
+    namespace: github-runner
+    chart: charts/actions-runner-controller-addon
+    values:
+      - repositories:
+          - dhalturin/diskless-kubernetes
+    needs:
+      - github-runner/github-runner
+    disableValidationOnInstall: true

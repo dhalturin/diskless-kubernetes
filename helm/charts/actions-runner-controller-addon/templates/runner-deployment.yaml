@@ -1,0 +1,13 @@
+{{- range $item := .Values.repositories }}
+---
+apiVersion: actions.summerwind.dev/v1alpha1
+kind: HorizontalRunnerAutoscaler
+metadata:
+  name: runner-autoscaler-{{ $item | replace "/" "-" }}
+spec:
+  scaleTargetRef:
+    kind: RunnerDeployment
+    name: runner-{{ $item | replace "/" "-" }}
+  minReplicas: 1
+  maxReplicas: 3
+{{ end }}

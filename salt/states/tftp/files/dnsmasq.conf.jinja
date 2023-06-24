@@ -1,0 +1,8 @@
+strict-order
+enable-tftp
+tftp-root=/srv/tftp/
+dhcp-boot=pxelinux.0
+dhcp-range={{ range.start }},{{ range.end }},{{ mask }},7D
+dhcp-option=option:router,{{ router }}
+log-dhcp
+dhcp-authoritative

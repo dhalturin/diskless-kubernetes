@@ -1,0 +1,2 @@
+instance-id: _hostname_
+local-hostname: _hostname_.local

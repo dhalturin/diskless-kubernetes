@@ -1,0 +1,17 @@
+{{- range $item := .Values.repositories }}
+---
+apiVersion: actions.summerwind.dev/v1alpha1
+kind: RunnerDeployment
+metadata:
+  name: runner-{{ $item | replace "/" "-" }}
+spec:
+  template:
+    metadata:
+      annotations:
+        cluster-autoscaler.kubernetes.io/safe-to-evict: "false"
+    spec:
+      repository: {{ $item }}
+      imagePullPolicy: IfNotPresent
+      labels:
+        - self-hosted
+{{ end }}

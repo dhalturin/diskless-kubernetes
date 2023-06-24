@@ -1,0 +1,19 @@
+apiVersion: kubeadm.k8s.io/v1beta3
+kind: InitConfiguration
+bootstrapTokens:
+- groups:
+    - system:bootstrappers:kubeadm:default-node-token
+  token: {{ token }}
+  ttl: 1h
+  usages:
+    - signing
+    - authentication
+localAPIEndpoint:
+  advertiseAddress: {{ apiServer }}
+---
+apiVersion: kubeadm.k8s.io/v1beta3
+kind: ClusterConfiguration
+networking:
+  dnsDomain: {{ dnsDomain }}
+  podSubnet: {{ podSubnet }}
+  serviceSubnet: {{ serviceSubnet }}

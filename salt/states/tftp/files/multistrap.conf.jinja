@@ -1,0 +1,19 @@
+[General]
+arch=amd64
+directory=/opt/rootfs
+cleanup=true
+noauth=true
+explicitsuite=false
+unpack=true
+allowrecommends=false
+setupscript=/tmp/rootfs-prepare.sh
+bootstrap={%- for item, value in suite.items() %}{{ item if 'pkgs' in value }} {% endfor %}
+# aptsources={%- for item, value in suite.items() %}{{ item }} {% endfor %}
+
+{% for item, value in suite.items() %}
+[{{ item }}]
+components={{ value.components | join(' ') }}
+{{ 'packages=' ~ value.pkgs | join(' ') | replace('%kernel_version%', kernel_version) if 'pkgs' in value }}
+source={{ value.source }}
+suite={{ item }}
+{% endfor %}

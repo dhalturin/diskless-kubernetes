@@ -1,0 +1,15 @@
+#cloud-config
+salt_minion:
+  conf:
+    file_client: local
+    fileserver_backend:
+      - gitfs
+    gitfs_remotes:
+      - https://github.com/dhalturin/test:
+        - root: salt/states
+
+users:
+  - name: ubuntu
+    shell: /bin/bash
+    ssh-authorized-keys: {{ sshkeys }}
+    sudo: ALL=(ALL) NOPASSWD:ALL

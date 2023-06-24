@@ -1,0 +1,3 @@
+apiVersion: v2
+name: cert-manager-addon
+version: 0.0.1
