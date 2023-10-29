@@ -28,7 +28,6 @@ values:
         pkgs:
           - apt
           - bash
-          - cloud-init
           - locales
           - ssh
           - lsb-release
@@ -47,6 +46,8 @@ values:
           - restricted
           - universe
           - multiverse
+        pkgs:
+          - cloud-init
         source: http://archive.ubuntu.com/ubuntu/
       jammy-security:
         pkgs:
