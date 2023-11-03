@@ -10,4 +10,4 @@ menu color scrollbar 30;47
 label {{ kernel_version }}
 menu label ubuntu {{ kernel_version }}
   kernel vmlinuz-{{ kernel_version }}
-  append initrd=initrd.img-{{ kernel_version }} rooturl=http://{{ ip }}/images/{{ image }} boot=pxe initramfs.runsize=150M disk=60
+  append initrd=initrd.img-{{ kernel_version }} rooturl=http://{{ ip }}/images/{{ image }} boot=pxe initramfs.runsize=150M disk=75

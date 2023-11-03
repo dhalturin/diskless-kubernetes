@@ -81,6 +81,8 @@ releases:
     values:
       - repositories:
           - dhalturin/diskless-kubernetes
+          - ui-vmm/ui-panel
+          - ui-vmm/ui-vmm
     needs:
       - github-runner/github-runner
     disableValidationOnInstall: true
